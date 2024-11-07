@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voting System</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome for icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <style>
+        .candidate-card {
+            transition: transform 0.2s;
+            height: 100%;
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+        .candidate-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .image-container {
+            position: relative;
+            width: 100%;
+            padding-top: 100%; /* Creates a square aspect ratio */
+            overflow: hidden;
+        }
+        .candidate-img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain; /* Changed from 'cover' to 'contain' */
+            background-color: #f8f9fa; /* Light background for images */
+            padding: 10px; /* Add some padding around the image */
+        }
+        .vote-count {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            z-index: 2;
+        }
+        .club-badge {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(255,255,255,0.9);
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            z-index: 2;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .vote-btn {
+            width: 100%;
+            border-radius: 25px;
+            padding: 10px 20px;
+            font-weight: 500;
+        }
+        .card-body {
+            padding: 1.5rem;
+        }
+        .logo-container {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 20px;
+        }
+        .logo-image {
+            max-width: 200px;  /* Adjust size as needed */
+            height: auto;
+            margin-bottom: 1rem;
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body class="bg-light">
+  <div class="container py-5">
+    <!-- Logo Section -->
+    <div class="logo-container">
+        <img src="/static/assets/Logo.JPG" alt="Company Logo" class="logo-image">
+        <h1 class="text-center">Stepping Stone Social Week Voting</h1>
+    </div>
+
+    <div class="row g-4">
+        {% for candidate in candidates %}
+        <div class="col-12 col-md-6 col-lg-4">
+            <div class="candidate-card shadow-sm">
+                <div class="image-container">
+                    <img src="{{ candidate.image_path }}" 
+                         class="candidate-img" 
+                         alt="{{ candidate.name }}">
+                    <span class="club-badge">{{ candidate.club }}</span>
+                    <span class="vote-count">
+                        <i class="fas fa-vote-yea me-1"></i>
+                        {{ candidate.votes }} votes
+                    </span>
+                </div>
+                
+                <div class="card-body">
+                    <h5 class="card-title text-center mb-3">{{ candidate.name }}</h5>
+                    
+                    <form action="/vote" method="POST" class="d-grid gap-2">
+                        <input type="hidden" name="candidate_id" value="{{ candidate.id }}">
+                      
+                        <button type="button" 
+                                class="btn btn-primary vote-btn" 
+                                data-bs-toggle="modal" 
+                                data-bs-target="#paymentModal-{{ candidate.id }}">
+                            <i class="fas fa-heart me-2"></i>
+                            Vote Now
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payment Modal for each candidate -->
+        <div class="modal fade" id="paymentModal-{{ candidate.id }}" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Vote for {{ candidate.name }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="paymentForm-{{ candidate.id }}" class="needs-validation" novalidate>
+                            <input type="hidden" name="candidate_id" value="{{ candidate.id }}">
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Email Address</label>
+                                <input type="email" 
+                                       class="form-control" 
+                                       name="email" 
+                                       required>
+                                <div class="invalid-feedback">
+                                    Please provide a valid email address.
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Number of Votes (₦50 per vote)</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       name="vote_count" 
+                                       value="1" 
+                                       min="1" 
+                                       required>
+                                <div class="form-text">
+                                    Total Cost: ₦<span class="total-cost">50</span>
+                                </div>
+                                <div class="invalid-feedback">
+                                    Please enter a valid number of votes.
+                                </div>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary w-100">
+                                Proceed to Payment (₦<span class="total-cost">50</span>)
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+  </div>
+
+    <!-- Bootstrap JS and Popper.js -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Custom JavaScript -->
+    <script>
+        // Form validation
+        (function () {
+            'use strict'
+            var forms = document.querySelectorAll('.needs-validation')
+            Array.prototype.slice.call(forms).forEach(function (form) {
+                form.addEventListener('submit', function (event) {
+                    if (!form.checkValidity()) {
+                        event.preventDefault()
+                        event.stopPropagation()
+                    }
+                    form.classList.add('was-validated')
+                }, false)
+            })
+        })()
+
+        // Payment form submission
+        document.querySelectorAll('[id^="paymentForm-"]').forEach(form => {
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                // Show loading state
+                const submitBtn = form.querySelector('button[type="submit"]');
+                const originalText = submitBtn.innerHTML;
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+                
+                try {
+                    const formData = new FormData(form);
+                    const response = await fetch('/initiate-payment', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (!response.ok) {
+                        throw new Error(data.detail || 'Payment initialization failed');
+                    }
+                    
+                    if (data.authorization_url) {
+                        window.location.href = data.authorization_url;
+                    } else {
+                        throw new Error('No authorization URL received');
+                    }
+                } catch (error) {
+                    console.error('Payment error:', error);
+                    alert(error.message || 'An error occurred. Please try again.');
+                } finally {
+                    // Reset button state
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                }
+            });
+        });
+
+        // Update total cost when vote count changes
+        document.querySelectorAll('input[name="vote_count"]').forEach(input => {
+            input.addEventListener('input', function() {
+                const totalCost = this.value * 50;
+                const form = this.closest('form');
+                form.querySelectorAll('.total-cost').forEach(span => {
+                    span.textContent = totalCost;
+                });
+            });
+        });
+
+        function showAlert(message, type = 'success') {
+            const alertContainer = document.getElementById('alertContainer');
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            alertContainer.appendChild(alertDiv);
+            
+            // Auto-dismiss after 5 seconds
+            setTimeout(() => {
+                alertDiv.remove();
+            }, 5000);
+        }
+
+        // Check for URL parameters on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('success') === 'true') {
+                showAlert(decodeURIComponent(urlParams.get('message')), 'success');
+            } else if (urlParams.get('error') === 'true') {
+                showAlert(decodeURIComponent(urlParams.get('message')), 'danger');
+            }
+            
+            // Clean up URL
+            if (urlParams.has('success') || urlParams.has('error')) {
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        });
+    </script>
+</body>
+</html>

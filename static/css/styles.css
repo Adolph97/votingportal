@@ -1,0 +1,25 @@
+/* More specific selector */
+.container .row .col .card .card-img-top {
+    width: 100%;
+    height: 400px !important; /* Using !important to override any existing styles */
+    object-fit: contain !important;
+    object-position: center;
+}
+
+.container .row .col .card {
+    height: 100%;
+    margin-bottom: 20px;
+}
+
+.candidate-card {
+    border: 1px solid #ddd;
+    padding: 15px;
+    margin: 10px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.candidate-card img {
+    max-width: 200px;
+    height: auto;
+} 

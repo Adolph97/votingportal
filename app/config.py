@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings
 import os
+from typing import Optional
 
 class Settings(BaseSettings):
     # Environment detection
@@ -16,28 +17,24 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     ADMIN_PASSWORD: str
     
-    # Application settings
-    BASE_URL: str = os.getenv('RENDER_EXTERNAL_URL', 'http://localhost:8000')
-
+    # Get the Render URL or fallback to localhost
+    RENDER_EXTERNAL_URL: Optional[str] = os.getenv('RENDER_EXTERNAL_URL')
+    
     @property
-    def app_url(self) -> str:
-        """Get the correct application URL based on environment"""
+    def base_url(self) -> str:
+        """Get the correct application URL"""
         if self.IS_PRODUCTION:
-            # Use RENDER_EXTERNAL_URL in production
-            url = os.getenv('RENDER_EXTERNAL_URL', '')
-            if not url:
-                # Fallback to manual URL if needed
-                url = "https://votingportal.onrender.com"
+            if not self.RENDER_EXTERNAL_URL:
+                raise ValueError("RENDER_EXTERNAL_URL must be set in production")
+            base = self.RENDER_EXTERNAL_URL
         else:
-            url = "http://localhost:8000"
-
+            base = "http://localhost:8000"
+            
         # Remove trailing slash if present
-        return url.rstrip('/')
+        return base.rstrip('/')
 
-    model_config = {
-        "env_file": ".env",
-        "env_file_encoding": "utf-8",
-        "extra": "allow"
-    }
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
 
 settings = Settings() 

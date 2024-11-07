@@ -152,11 +152,20 @@ async def initiate_payment(
     db: Session = Depends(database.get_db)
 ):
     try:
+        # Log environment information
+        logger.info(f"Environment: {'Production' if settings.IS_PRODUCTION else 'Development'}")
+        logger.info(f"Base URL from settings: {settings.base_url}")
+        logger.info(f"RENDER_EXTERNAL_URL: {os.getenv('RENDER_EXTERNAL_URL')}")
+
         # Calculate amount in kobo
         amount = vote_count * 50 * 100
 
-        # Generate unique reference
+        # Generate reference
         reference = f"vote_{secrets.token_urlsafe(8)}"
+
+        # Construct callback URL
+        callback_url = f"{settings.base_url}/verify-payment"
+        logger.info(f"Constructed callback URL: {callback_url}")
 
         # Create transaction record
         transaction = models.Transaction(
@@ -170,15 +179,12 @@ async def initiate_payment(
         db.add(transaction)
         db.commit()
 
-        # Initialize Paystack transaction
+        # Initialize Paystack payment
         headers = {
             "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
             "Content-Type": "application/json"
         }
 
-        # Use the correct callback URL based on environment
-        callback_url = f"{settings.BASE_URL}/verify-payment"
-        
         payload = {
             "email": email,
             "amount": amount,
@@ -186,7 +192,8 @@ async def initiate_payment(
             "callback_url": callback_url,
             "metadata": {
                 "candidate_id": candidate_id,
-                "vote_count": vote_count
+                "vote_count": vote_count,
+                "base_url": settings.base_url  # Add this for debugging
             }
         }
 
@@ -198,16 +205,16 @@ async def initiate_payment(
             json=payload
         )
 
-        logger.info(f"Paystack response: {response.text}")
-
         if response.status_code == 200:
             data = response.json()
+            logger.info(f"Paystack initialization successful: {data}")
             if data["status"]:
                 return JSONResponse({
                     "status": "success",
                     "authorization_url": data["data"]["authorization_url"]
                 })
 
+        logger.error(f"Paystack initialization failed: {response.text}")
         raise HTTPException(status_code=400, detail="Payment initialization failed")
 
     except Exception as e:
@@ -368,3 +375,26 @@ async def catch_exceptions_middleware(request: Request, call_next):
             status_code=500,
             content={"detail": "Internal server error"}
         )
+
+# Add a debug endpoint
+@app.get("/debug/url")
+async def debug_url():
+    return {
+        "is_production": settings.IS_PRODUCTION,
+        "base_url": settings.base_url,
+        "render_external_url": os.getenv('RENDER_EXTERNAL_URL'),
+        "render_env": os.getenv('RENDER'),
+    }
+
+@app.on_event("startup")
+async def startup_event():
+    """Verify URL configuration on startup"""
+    logger.info("Starting application...")
+    logger.info(f"Environment: {'Production' if settings.IS_PRODUCTION else 'Development'}")
+    logger.info(f"Base URL: {settings.base_url}")
+    logger.info(f"RENDER env var: {os.getenv('RENDER')}")
+    logger.info(f"RENDER_EXTERNAL_URL: {os.getenv('RENDER_EXTERNAL_URL')}")
+    
+    if settings.IS_PRODUCTION and not settings.RENDER_EXTERNAL_URL:
+        logger.error("RENDER_EXTERNAL_URL is not set in production!")
+        raise ValueError("RENDER_EXTERNAL_URL must be set in production")

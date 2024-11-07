@@ -14,6 +14,11 @@ import json
 import requests
 from typing import Optional
 from urllib.parse import urlencode
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
@@ -28,10 +33,6 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
-
-# For Vercel, we need to handle static files differently
-if not os.environ.get("VERCEL"):
-    app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Templates - make sure this points to your templates directory
 templates = Jinja2Templates(directory="templates")
@@ -151,19 +152,10 @@ async def initiate_payment(
     db: Session = Depends(database.get_db)
 ):
     try:
-        # Validate inputs
-        if vote_count < 1:
-            raise HTTPException(status_code=400, detail="Vote count must be at least 1")
+        # Calculate amount in kobo
+        amount = vote_count * 50 * 100
 
-        # Check if candidate exists
-        candidate = db.query(models.Candidate).filter(models.Candidate.id == candidate_id).first()
-        if not candidate:
-            raise HTTPException(status_code=404, detail="Candidate not found")
-
-        # Calculate amount in kobo (50 Naira per vote)
-        amount = vote_count * 50 * 100  # Convert to kobo
-
-        # Generate reference
+        # Generate unique reference
         reference = f"vote_{secrets.token_urlsafe(8)}"
 
         # Create transaction record
@@ -171,35 +163,42 @@ async def initiate_payment(
             reference=reference,
             candidate_id=candidate_id,
             vote_count=vote_count,
-            amount=amount/100,  # Store in Naira
+            amount=amount/100,
             email=email,
             status="pending"
         )
         db.add(transaction)
         db.commit()
 
-        # Initialize Paystack payment
+        # Initialize Paystack transaction
         headers = {
             "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
             "Content-Type": "application/json"
         }
 
+        # Use the correct callback URL based on environment
+        callback_url = f"{settings.BASE_URL}/verify-payment"
+        
         payload = {
             "email": email,
             "amount": amount,
             "reference": reference,
-            "callback_url": f"{settings.BASE_URL}/verify-payment",
+            "callback_url": callback_url,
             "metadata": {
                 "candidate_id": candidate_id,
                 "vote_count": vote_count
             }
         }
 
+        logger.info(f"Initiating payment with payload: {payload}")
+
         response = requests.post(
             "https://api.paystack.co/transaction/initialize",
             headers=headers,
             json=payload
         )
+
+        logger.info(f"Paystack response: {response.text}")
 
         if response.status_code == 200:
             data = response.json()
@@ -209,12 +208,11 @@ async def initiate_payment(
                     "authorization_url": data["data"]["authorization_url"]
                 })
 
-        db.rollback()
         raise HTTPException(status_code=400, detail="Payment initialization failed")
 
     except Exception as e:
+        logger.error(f"Payment error: {str(e)}")
         db.rollback()
-        print(f"General error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/verify-payment")
@@ -223,12 +221,15 @@ async def verify_payment(
     db: Session = Depends(database.get_db)
 ):
     try:
+        logger.info(f"Verifying payment for reference: {reference}")
+
         # Get transaction record
         transaction = db.query(models.Transaction).filter(
             models.Transaction.reference == reference
         ).first()
 
         if not transaction:
+            logger.error(f"Transaction not found for reference: {reference}")
             return RedirectResponse(
                 url="/?error=invalid_transaction",
                 status_code=303
@@ -243,6 +244,8 @@ async def verify_payment(
             f"https://api.paystack.co/transaction/verify/{reference}",
             headers=headers
         )
+
+        logger.info(f"Paystack verification response: {response.text}")
 
         if response.status_code == 200:
             data = response.json()
@@ -259,8 +262,10 @@ async def verify_payment(
                 if candidate:
                     candidate.votes += transaction.vote_count
                     db.commit()
+                    logger.info(f"Votes updated for candidate {candidate.id}")
+                    
                     return RedirectResponse(
-                        url=f"/?success=true&votes={transaction.vote_count}",
+                        url=f"/?success=true&message=Thank+you+for+voting!+{transaction.vote_count}+votes+added.",
                         status_code=303
                     )
 
@@ -274,7 +279,7 @@ async def verify_payment(
         )
 
     except Exception as e:
-        print(f"Verification error: {str(e)}")
+        logger.error(f"Verification error: {str(e)}")
         return RedirectResponse(
             url="/?error=verification_error",
             status_code=303

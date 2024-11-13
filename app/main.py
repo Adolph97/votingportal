@@ -15,6 +15,7 @@ import requests
 from typing import Optional
 from urllib.parse import urlencode
 import logging
+import uvicorn
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -398,3 +399,13 @@ async def startup_event():
     if settings.IS_PRODUCTION and not settings.RENDER_EXTERNAL_URL:
         logger.error("RENDER_EXTERNAL_URL is not set in production!")
         raise ValueError("RENDER_EXTERNAL_URL must be set in production")
+
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(
+        "app.main:app",
+        host="0.0.0.0",
+        port=port,
+        reload=False,
+        workers=4
+    )

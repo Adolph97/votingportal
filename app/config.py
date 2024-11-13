@@ -24,12 +24,15 @@ class Settings(BaseSettings):
     RENDER: Optional[str] = os.getenv('RENDER')
     RENDER_EXTERNAL_URL: Optional[str] = os.getenv('RENDER_EXTERNAL_URL')
     
+    # Add port configuration
+    PORT: int = int(os.getenv('PORT', 8000))
+    
     @property
     def base_url(self) -> str:
         """Get the correct application URL"""
         if self.IS_PRODUCTION:
-            return self.RENDER_EXTERNAL_URL or 'http://localhost:8000'
-        return "http://localhost:8000"
+            return os.getenv('RENDER_EXTERNAL_URL', f'http://localhost:{self.PORT}')
+        return f"http://localhost:{self.PORT}"
 
     class Config:
         env_file = ".env"

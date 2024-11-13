@@ -1,9 +1,20 @@
 services:
-  # A Docker web service
   - type: web
-    name: votingportal
-    runtime: python
-    plan: free
-    autoDeploy: false
+    name: your-app-name
+    env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    startCommand: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: RENDER
+        value: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: voting_db
+          property: connectionString
+
+databases:
+  - name: voting_db
+    databaseName: voting_db
+    plan: free

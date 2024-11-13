@@ -400,12 +400,23 @@ async def startup_event():
         logger.error("RENDER_EXTERNAL_URL is not set in production!")
         raise ValueError("RENDER_EXTERNAL_URL must be set in production")
 
+# Add keep-alive endpoint
+@app.get("/ping")
+async def ping():
+    return {"status": "alive"}
+
+# Add health check endpoint
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy"}
+
+# ... your other routes ...
+
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 8000))
+    port = int(os.getenv("PORT", 10000))  # Default to 10000 for Render
     uvicorn.run(
-        "app.main:app",
+        app,
         host="0.0.0.0",
         port=port,
-        reload=False,
-        workers=4
+        log_level="info"
     )

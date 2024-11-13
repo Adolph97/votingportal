@@ -6,6 +6,9 @@ class Settings(BaseSettings):
     # Environment detection
     IS_PRODUCTION: bool = os.getenv('RENDER', 'false').lower() == 'true'
     
+    # Port configuration
+    PORT: int = int(os.getenv('PORT', 10000))
+    
     # Database settings
     DATABASE_URL: str = os.getenv(
         'DATABASE_URL',
@@ -23,9 +26,6 @@ class Settings(BaseSettings):
     # Render specific settings
     RENDER: Optional[str] = os.getenv('RENDER')
     RENDER_EXTERNAL_URL: Optional[str] = os.getenv('RENDER_EXTERNAL_URL')
-    
-    # Add port configuration
-    PORT: int = int(os.getenv('PORT', 8000))
     
     @property
     def base_url(self) -> str:
